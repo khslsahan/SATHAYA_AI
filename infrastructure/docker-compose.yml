@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/lla_db
+      - REDIS_URL=redis://redis:6379/0
+      - VECTOR_DB_TYPE=chroma
+    volumes:
+      - ../backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - lla-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - lla-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lla_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lla-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lla-network
+
+  data-pipeline:
+    build:
+      context: ../data-pipeline
+      dockerfile: Dockerfile
+    environment:
+      - VECTOR_DB_TYPE=chroma
+    volumes:
+      - ../data-pipeline:/app
+    networks:
+      - lla-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  lla-network:
+    driver: bridge
+
